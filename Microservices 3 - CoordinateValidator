@@ -1,0 +1,127 @@
+exports.handler = (event, context, callback) => {
+    // TODO implement
+    // Libraries importing
+    console.log("Starting...");
+
+    var AWS = require('aws-sdk');
+    
+    console.log("AWS SDK Onboarded");
+    var lat;
+    var long;
+    
+    //Connecting to DynamoDb
+    var returnresult = "";
+    console.log("Creating AWS Object");
+    var docClient = new AWS.DynamoDB.DocumentClient();
+    console.log("Going to connecet DynamoDB");
+    var params = {
+        TableName:"Coordinates",
+        KeyConditionExpression: "Valid = :valid",
+        ScanIndexForward: false,
+        ExpressionAttributeValues: {
+        ':valid': 1
+        },
+        Limit:1
+    };
+     
+     console.log("Just outside scan function");
+    //Scaning the entire connected table   
+    docClient.query(params, function(err, data) {
+        if (err) {
+            console.log("Error found - No data found");
+            callback(err, null);
+        } else {
+            console.log("Got data");
+            console.log(data);
+            returnresult = data;
+        
+        
+            //Returning the value
+            //console.log("The lat value is ");
+            //console.log(returnresult.Items[0].Latitude);
+            //console.log(returnresult.Items[0].Longtiude);
+            //callback(null,returnresult);
+            lat=returnresult.Items[0].Latitude;
+            long=returnresult.Items[0].Longtiude;
+    
+            var db="";
+            var params1 = {
+                TableName:"Location", Limit: 100
+                };
+        
+            docClient.scan(params1, function(err, data) {
+            if (err) {
+                console.log("Location problem");
+                callback(err, null);
+            } else {
+                console.log(data);
+                console.log("Got data");
+                console.log(data.Items[0].ReachedVIT);
+                db = data.Items[0].ReachedVIT;
+                console.log(db);
+                console.log(lat);
+                console.log(long);
+            
+    
+                if(long < 80.158913 && long > 80.150128 && lat < 12.846531 && lat > 12.839532)
+                {
+                    console.log("Coordinates inside");
+                    
+                    if(db=="No"){
+        
+                        var params2 = {
+                            TableName:"Location",
+                            Key:{
+                                "ReachedLocation": "Head"
+                            },
+                            UpdateExpression: "set ReachedVIT = :r",
+                            ExpressionAttributeValues:{
+                                ":r":"Yes"
+                            },
+                            ReturnValues:"UPDATED_NEW"
+                        };
+    
+                        console.log("Updating the item...");
+                        docClient.update(params2, function(err, data) {
+                            if (err) {
+                                console.error("Unable to update item. Error JSON:", JSON.stringify(err, null, 2));
+                            } else {
+                                console.log("UpdateItem succeeded:", JSON.stringify(data, null, 2));
+                            } 
+                            });
+                            console.log("Still inside");
+                    }
+                } else{
+                    //console.log("Came out");
+                    if(db=="Yes"){
+                        var params3 = {
+                            TableName:"Location",
+                            Key:{
+                                "ReachedLocation": "Head"
+                            },
+                            UpdateExpression: "set ReachedVIT = :r",
+                            ExpressionAttributeValues:{
+                                ":r":"No"
+                            },
+                            ReturnValues:"UPDATED_NEW"
+                        };
+    
+                        //console.log("Updating the item...");
+                        docClient.update(params3, function(err, data) {
+                            if (err) {
+                                console.error("Unable to update item. Error JSON:", JSON.stringify(err, null, 2));
+                            } else {
+                                console.log("UpdateItem succeeded:", JSON.stringify(data, null, 2));
+                            } 
+                            });
+                    }
+                }
+                
+                
+            }
+            });
+    
+        }
+    });
+    
+};
